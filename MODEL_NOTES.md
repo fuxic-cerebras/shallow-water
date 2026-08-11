@@ -10,7 +10,7 @@ term is discretized, and why the schemes are arranged the way they are.
 5. [Derived scales](#5-derived-scales-reported-at-startup)
 6. [Code layout](#6-code-layout)
 7. [Configuration switches](#7-configuration-switches-swepy42-47)
-8. [Known rough edges](#8-known-rough-edges)
+8. [Fixed issues](#8-fixed-issues)
 9. [Running it](#9-running-it)
 
 Sections 1–2 are physics; 3–4 are numerics. If you only want to understand what
@@ -843,28 +843,66 @@ reduced gravity $g = 0.01$ to slow the waves into the quasi-geostrophic regime.
 
 ---
 
-## 8. Known rough edges
+## 8. Fixed issues
 
-Latent issues, harmless in the default configuration but relevant if the
-corresponding switch is flipped:
+All of the following were latent in the original code — harmless in the default
+configuration, but triggered as soon as the corresponding switch was flipped.
+They have been fixed; recorded here because the failure modes are instructive
+and easy to reintroduce.
 
-1. **`swe.py:187`** — friction on $v$ slices `[:-1, :]`, but $v$'s valid domain
-   is `[:, :-1]`. The last row of $v$ is never damped. Should mirror the
-   slicing on line 182.
-2. **`swe.py:89`** — `tau_x = -tau_0*np.cos(np.pi*y/L_y)*0`; the trailing `*0`
-   zeroes the zonal wind, so `use_wind = True` currently has no effect in $x$.
-3. **`swe.py:119-120`** — `use_sink` references `sigma`, which only exists when
-   `use_source` is also enabled; a sink alone raises `NameError`.
-4. **`fourier_transform.py:11`** — `A[0] = signal.mean()` is overwritten by the
-   $n = 1$ iteration of the loop, so the DC component is lost. Harmless for
-   spectra of oscillatory signals.
-5. **`swe.py:10`** — docstring typo: the second continuity flux should be
-   $\partial[(\eta+H)v]/\partial y$.
+1. **Friction on $v$ used the wrong slice.** `swe.py` applied
+   `v_np1[:-1, :] -= dt*kappa[:-1, :]*v_n[:-1, :]`, a copy of the $u$ line, but
+   $v$'s valid domain is `[:, :-1]` (north faces), not `[:-1, :]`. The effect was
+   that the easternmost column of $v$ received no bottom drag at all, while the
+   north-wall row was damped pointlessly before being zeroed by the boundary
+   condition. Now mirrors the slicing of the $v$ predictor.
+2. **Wind stress was disabled and shape-fragile.** `tau_x` carried a trailing
+   `*0`, so `use_wind = True` applied no zonal stress; `tau_y` was shaped
+   `(1, N_x)` and broadcast against an array whose last axis is $N_y$, which
+   worked only for a square grid and raised `ValueError` otherwise. The $v$ wind
+   term also had the same slicing error as (1). `tau_y` is now a length-$N_y$
+   array, sliced to the $v$ domain.
+3. **`use_coriolis` without `use_beta` crashed.** `L_R` and `c_R` were bound only
+   inside the `use_beta` branch, but the diagnostics printed them
+   unconditionally, so a constant-$f$ run died with
+   `NameError: name 'L_R' is not defined`. $L_R = \sqrt{gH}/f_0$ does not depend
+   on $\beta$ and is now computed unconditionally; the two long-Rossby-wave
+   diagnostics, which genuinely require a $\beta$-plane, are printed only when
+   `use_beta` is on.
+4. **`use_sink` without `use_source` crashed obscurely.** The sink is defined as
+   the uniform rate that removes exactly as much mass as the source adds, so it
+   is meaningless alone — but it failed with a bare `NameError` on `sigma`. It
+   now raises an explicit `ValueError` naming the requirement.
+5. **Dead line in the DFT.** `fourier_transform.py` set `A[0] = signal.mean()`,
+   which the $n = 1$ loop iteration immediately overwrote — slot $n-1$ holds
+   harmonic $n$, so index 0 is the fundamental, not DC. Removed, with a comment
+   noting that the returned spectrum starts at harmonic 1 and excludes DC by
+   design. (To remove a mean offset properly, detrend the signal *before*
+   transforming.)
+6. **Mislabelled diagnostic.** The startup banner printed
+   $\sqrt{gH}/(f_0 L_x)$ as "Rossby number". That expression is $L_R/L_x$ — the
+   deformation radius as a fraction of the domain, i.e. the square root of the
+   Burger number. The Rossby number proper is $U/fL$. The value is unchanged;
+   only the label now says what it is.
+7. **Docstring and comment typos** — the second continuity flux read
+   $\partial[(\eta+H)u]/\partial y$ instead of $v$; plus "mst", "eqations",
+   "solves that solves", "enxt", "anin_interval", and a stray `km` unit on the
+   printed $\rho_0$.
+8. **`viz_tools.py:30`** used the pre-matplotlib-3.3 `set_array` convention
+   (`eta_list[num][:-1, :-1].flatten()`), which raises `ValueError` on modern
+   matplotlib since $X$, $Y$ and $\eta$ all share the same shape and
+   `shading="nearest"` is selected. Now passes the full 2D array.
 
-Already fixed: `viz_tools.py:30` used the pre-matplotlib-3.3 `set_array`
-convention (`eta_list[num][:-1, :-1].flatten()`), which raises `ValueError`
-on modern matplotlib since $X$, $Y$, and $\eta$ all share the same shape and
-`shading="nearest"` is selected. It now passes the full 2D array.
+**Verification.** With the default switches the fixes are a no-op: `eta_n`,
+`u_n` and `v_n` are bit-identical to the pre-fix code after 400 steps. Each
+previously-broken path — friction, wind, constant $f$, source+sink, and a
+non-square 100×150 grid — now runs to completion with finite fields and mass
+conserved to the initial value.
+
+One item was deliberately **not** changed: the friction switch damps momentum
+but the model has no explicit diffusion of $\eta$, so the only smoothing of the
+elevation field is the implicit numerical diffusion of the upwind scheme
+(§4.1). That is a modelling choice, not a defect.
 
 ---
 

@@ -1,13 +1,13 @@
 
-"""Script that solves that solves the 2D shallow water equations using finite
+"""Script that solves the 2D shallow water equations using finite
 differences where the momentum equations are taken to be linear, but the
 continuity equation is solved in its nonlinear form. The model supports turning
-on/off various terms, but in its mst complete form, the model solves the following
-set of eqations:
+on/off various terms, but in its most complete form, the model solves the following
+set of equations:
 
     du/dt - fv = -g*d(eta)/dx + tau_x/(rho_0*H)- kappa*u
     dv/dt + fu = -g*d(eta)/dy + tau_y/(rho_0*H)- kappa*v
-    d(eta)/dt + d((eta + H)*u)/dx + d((eta + H)*u)/dy = sigma - w
+    d(eta)/dt + d((eta + H)*u)/dx + d((eta + H)*v)/dy = sigma - w
 
 where f = f_0 + beta*y can be the full latitude varying coriolis parameter.
 For the momentum equations, an ordinary forward-in-time centered-in-space
@@ -86,37 +86,41 @@ if (use_friction is True):
 
 # Define wind stress arrays if wind is enabled.
 if (use_wind is True):
-    tau_x = -tau_0*np.cos(np.pi*y/L_y)*0
-    tau_y = np.zeros((1, len(x)))
-    param_string += "\ntau_0 = {:g}\nrho_0 = {:g} km".format(tau_0, rho_0)
+    tau_x = -tau_0*np.cos(np.pi*y/L_y)
+    tau_y = np.zeros(len(y))
+    param_string += "\ntau_0 = {:g}\nrho_0 = {:g}".format(tau_0, rho_0)
 
 # Define coriolis array if coriolis is enabled.
 if (use_coriolis is True):
     if (use_beta is True):
         f = f_0 + beta*y        # Varying coriolis parameter
-        L_R = np.sqrt(g*H)/f_0  # Rossby deformation radius
-        c_R = beta*g*H/f_0**2   # Long Rossby wave speed
     else:
         f = f_0*np.ones(len(y))                 # Constant coriolis parameter
 
+    L_R = np.sqrt(g*H)/f_0      # Rossby deformation radius (independent of beta)
     alpha = dt*f                # Parameter needed for coriolis scheme
     beta_c = alpha**2/4         # Parameter needed for coriolis scheme
 
     param_string += "\nf_0 = {:g}".format(f_0)
     param_string += "\nMax alpha = {:g}\n".format(alpha.max())
     param_string += "\nRossby radius: {:.1f} km".format(L_R/1000)
-    param_string += "\nRossby number: {:g}".format(np.sqrt(g*H)/(f_0*L_x))
-    param_string += "\nLong Rossby wave speed: {:.3f} m/s".format(c_R)
-    param_string += "\nLong Rossby transit time: {:.2f} days".format(L_x/(c_R*24*3600))
+    param_string += "\nRossby radius / domain length: {:g}".format(L_R/L_x)
+    # The long Rossby wave only exists on a beta-plane.
+    if (use_beta is True):
+        c_R = beta*g*H/f_0**2   # Long Rossby wave speed
+        param_string += "\nLong Rossby wave speed: {:.3f} m/s".format(c_R)
+        param_string += "\nLong Rossby transit time: {:.2f} days".format(L_x/(c_R*24*3600))
     param_string += "\n================================================================\n"
 
 # Define source array if source is enabled.
-if (use_source):
-    sigma = np.zeros((N_x, N_y))
+if (use_source is True):
     sigma = 0.0001*np.exp(-((X-L_x/2)**2/(2*(1E+5)**2) + (Y-L_y/2)**2/(2*(1E+5)**2)))
-    
-# Define source array if source is enabled.
+
+# Define sink array if sink is enabled. The sink is uniform and sized to remove
+# exactly as much mass as the source adds, so it needs the source to be defined.
 if (use_sink is True):
+    if (use_source is not True):
+        raise ValueError("use_sink requires use_source: the sink balances the source")
     w = np.ones((N_x, N_y))*sigma.sum()/(N_x*N_y)
 
 # Write all parameters out to file.
@@ -132,7 +136,7 @@ print(param_string)     # Also print parameters to screen
 u_n = np.zeros((N_x, N_y))      # To hold u at current time step
 u_np1 = np.zeros((N_x, N_y))    # To hold u at next time step
 v_n = np.zeros((N_x, N_y))      # To hold v at current time step
-v_np1 = np.zeros((N_x, N_y))    # To hold v at enxt time step
+v_np1 = np.zeros((N_x, N_y))    # To hold v at next time step
 eta_n = np.zeros((N_x, N_y))    # To hold eta at current time step
 eta_np1 = np.zeros((N_x, N_y))  # To hold eta at next time step
 
@@ -184,12 +188,12 @@ while (time_step < max_time_step):
     # Add friction if enabled.
     if (use_friction is True):
         u_np1[:-1, :] -= dt*kappa[:-1, :]*u_n[:-1, :]
-        v_np1[:-1, :] -= dt*kappa[:-1, :]*v_n[:-1, :]
+        v_np1[:, :-1] -= dt*kappa[:, :-1]*v_n[:, :-1]
 
     # Add wind stress if enabled.
     if (use_wind is True):
-        u_np1[:-1, :] += dt*tau_x[:]/(rho_0*H)
-        v_np1[:-1, :] += dt*tau_y[:]/(rho_0*H)
+        u_np1[:-1, :] += dt*tau_x/(rho_0*H)
+        v_np1[:, :-1] += dt*tau_y[:-1]/(rho_0*H)
 
     # Use a corrector method to add coriolis if it's enabled.
     if (use_coriolis is True):
@@ -244,7 +248,7 @@ while (time_step < max_time_step):
         ts_sample.append(eta_n[int(N_x/2), int(N_y/2)])     # Sample center point for spectrum
         t_sample.append(time_step*dt)                       # Keep track of sample times.
 
-    # Store eta and (u, v) every anin_interval time step for animations.
+    # Store eta and (u, v) every anim_interval time step for animations.
     if (time_step % anim_interval == 0):
         print("Time: \t{:.2f} hours".format(time_step*dt/3600))
         print("Step: \t{} / {}".format(time_step, max_time_step))

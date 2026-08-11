@@ -8,8 +8,9 @@ def fourier_transform(signal, N, T):
 
     A = np.zeros(N_half)
     B = np.zeros(N_half)
-    A[0] = signal.mean()
 
+    # Index n-1 holds harmonic n, so the returned spectrum starts at harmonic 1
+    # (frequency 1/T); the DC component is deliberately not part of the output.
     q = np.arange(1, N+1)
 
     for n in range(1, N_half):
