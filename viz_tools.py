@@ -27,7 +27,7 @@ def eta_animation(X, Y, eta_list, frame_interval, filename):
     def update_eta(num):
         ax.set_title("Surface elevation $\eta$ after t = {:.2f} hours".format(
             num*frame_interval/3600), fontname = "serif", fontsize = 16)
-        pmesh.set_array(eta_list[num][:-1, :-1].flatten())
+        pmesh.set_array(eta_list[num])
         return pmesh,
 
     anim = animation.FuncAnimation(fig, update_eta,
