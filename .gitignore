@@ -102,3 +102,7 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+
+# Generated model output (the gifs in the README are tracked on purpose)
+*.mp4
+param_output.txt
