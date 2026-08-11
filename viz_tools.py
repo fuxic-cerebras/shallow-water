@@ -8,9 +8,27 @@ from matplotlib import animation
 from mpl_toolkits.mplot3d import Axes3D
 import fourier_transform as ft
 
-#plt.style.use("seaborn")
+# The gifs committed to the repo were made with the seaborn style, which
+# matplotlib renamed to "seaborn-v0_8" in 3.6 and dropped under its old name in
+# 3.8. Use whichever is present so new output still looks like the README.
+if ("seaborn-v0_8" in plt.style.available):
+    plt.style.use("seaborn-v0_8")
+elif ("seaborn" in plt.style.available):
+    plt.style.use("seaborn")
 
-def eta_animation(X, Y, eta_list, frame_interval, filename):
+def animation_writer(filetype, fps = 24):
+    """Function that returns a matplotlib writer for <filetype>, either "mp4" or
+    "gif". mp4 needs ffmpeg (on PATH, or pointed to by animation.ffmpeg_path),
+    while gif only needs pillow, which matplotlib already depends on."""
+    if (filetype == "mp4"):
+        return animation.FFMpegWriter(fps = fps, bitrate = 10000,
+            codec = "libx264", extra_args = ["-pix_fmt", "yuv420p"])
+    elif (filetype == "gif"):
+        return animation.PillowWriter(fps = fps)
+    else:
+        raise ValueError("filetype must be \"mp4\" or \"gif\", got {}".format(filetype))
+
+def eta_animation(X, Y, eta_list, frame_interval, filename, filetype = "mp4"):
     """Function that takes in the domain x, y (2D meshgrids) and a list of 2D arrays
     eta_list and creates an animation of all eta images. To get updating title one
     also need specify time step dt between each frame in the simulation, the number
@@ -32,12 +50,10 @@ def eta_animation(X, Y, eta_list, frame_interval, filename):
 
     anim = animation.FuncAnimation(fig, update_eta,
         frames = len(eta_list), interval = 10, blit = False)
-    mpeg_writer = animation.FFMpegWriter(fps = 24, bitrate = 10000,
-        codec = "libx264", extra_args = ["-pix_fmt", "yuv420p"])
-    anim.save("{}.mp4".format(filename), writer = mpeg_writer)
+    anim.save("{}.{}".format(filename, filetype), writer = animation_writer(filetype))
     return anim    # Need to return anim object to see the animation
 
-def velocity_animation(X, Y, u_list, v_list, frame_interval, filename):
+def velocity_animation(X, Y, u_list, v_list, frame_interval, filename, filetype = "mp4"):
     """Function that takes in the domain x, y (2D meshgrids) and a lists of 2D arrays
     u_list, v_list and creates an quiver animation of the velocity field (u, v). To get
     updating title one also need specify time step dt between each frame in the simulation,
@@ -62,17 +78,18 @@ def velocity_animation(X, Y, u_list, v_list, frame_interval, filename):
 
     anim = animation.FuncAnimation(fig, update_quiver,
         frames = len(u_list), interval = 10, blit = False)
-    mpeg_writer = animation.FFMpegWriter(fps = 24, bitrate = 10000,
-        codec = "libx264", extra_args = ["-pix_fmt", "yuv420p"])
     fig.tight_layout()
-    anim.save("{}.mp4".format(filename), writer = mpeg_writer)
+    anim.save("{}.{}".format(filename, filetype), writer = animation_writer(filetype))
     return anim    # Need to return anim object to see the animation
 
-def eta_animation3D(X, Y, eta_list, frame_interval, filename):
+def eta_animation3D(X, Y, eta_list, frame_interval, filename, filetype = "mp4"):
+    """Function that makes the same animation as eta_animation, but as a 3D
+    surface plot of eta rather than a flat colormesh. This is the function that
+    produced surface.gif in the README."""
     fig = plt.figure(figsize = (8, 8), facecolor = "white")
     ax = fig.add_subplot(111, projection='3d')
 
-    surf = ax.plot_surface(X, Y, eta_list[0], cmap = plt.cm.RdBu_r)
+    surf = ax.plot_surface(X/1000, Y/1000, eta_list[0], cmap = plt.cm.RdBu_r)
 
     def update_surf(num):
         ax.clear()
@@ -85,21 +102,18 @@ def eta_animation3D(X, Y, eta_list, frame_interval, filename):
         ax.set_xlim(X.min()/1000, X.max()/1000)
         ax.set_ylim(Y.min()/1000, Y.max()/1000)
         ax.set_zlim(-0.3, 0.7)
-        plt.tight_layout()
         return surf,
 
     anim = animation.FuncAnimation(fig, update_surf,
         frames = len(eta_list), interval = 10, blit = False)
-    mpeg_writer = animation.FFMpegWriter(fps = 24, bitrate = 10000,
-        codec = "libx264", extra_args = ["-pix_fmt", "yuv420p"])
-    anim.save("{}.mp4".format(filename), writer = mpeg_writer)
+    anim.save("{}.{}".format(filename, filetype), writer = animation_writer(filetype))
     return anim    # Need to return anim object to see the animation
 
 def surface_plot3D(X, Y, eta, x_lim, y_lim, z_lim):
     """Function that takes input 1D coordinate arrays x, y and 2D array
     array psi. Then plots psi as a surface in 3D space on a meshgrid."""
     fig = plt.figure(figsize = (11, 7))
-    ax = Axes3D(fig)
+    ax = fig.add_subplot(111, projection = "3d")
     surf = ax.plot_surface(X, Y, eta, rstride = 1, cstride = 1,
         cmap = plt.cm.jet, linewidth = 0, antialiased = True)
     ax.set_xlim(*x_lim)

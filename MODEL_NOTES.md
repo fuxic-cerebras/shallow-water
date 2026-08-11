@@ -796,7 +796,7 @@ $T_R \approx 5.9\ \mathrm{days}$, $\Delta t = 21.4\ \mathrm{s}$.
 |---|---|
 | `eta_animation` | `pcolormesh` movie of surface elevation |
 | `velocity_animation` | quiver movie of $(u,v)$ |
-| `eta_animation3D` | 3D surface movie of $\eta$ |
+| `eta_animation3D` | 3D surface movie of $\eta$ — this is what `surface.gif` in the README shows |
 | `pmesh_plot`, `quiver_plot` | single-frame snapshots |
 | `hovmuller_plot` | $x$–$t$ diagram; crest slope *is* the phase speed |
 | `plot_time_series_and_ft` | center-point $\eta(t)$ and its power spectrum |
@@ -919,6 +919,10 @@ python3 -m venv --system-site-packages .venv   # inherits the RPM numpy
 
 `matplotlibrc` in the repo root points `animation.ffmpeg_path` at the static
 ffmpeg binary shipped inside the `imageio-ffmpeg` wheel, so it is only picked up
-when running from this directory. Output is `eta.mp4` and `velocity.mp4`; the
+when running from this directory. All three animation functions take
+`filetype = "mp4"` (ffmpeg) or `"gif"` (pillow, no external binary needed).
+As configured, output is `surface.mp4` and `velocity.mp4`, matching the pair of
+gifs in the README; uncomment the `eta_animation` call in `swe.py` to also get
+the flat `pcolormesh` version. The
 default 5000-step run takes a few seconds to integrate and rather longer to
 encode.
