@@ -268,11 +268,12 @@ print("\nVisualizing results...")
 #viz_tools.quiver_plot(X, Y, u_n, v_n, "Final state of velocity field $\mathbf{u}(x,y)$")
 #viz_tools.hovmuller_plot(x, t_sample, hm_sample)
 #viz_tools.plot_time_series_and_ft(t_sample, ts_sample)
-# eta_anim = viz_tools.eta_animation(X, Y, eta_list, anim_interval*dt, "eta")
-# The 3D surface version of the same field; this is what surface.gif in the
-# README shows. Pass filetype = "gif" to any of these to get a gif instead.
-eta_surf_anim = viz_tools.eta_animation3D(X, Y, eta_list, anim_interval*dt, "surface")
-quiv_anim = viz_tools.velocity_animation(X, Y, u_list, v_list, anim_interval*dt, "velocity")
+# eta_anim = viz_tools.eta_animation(X, Y, eta_list, anim_interval*dt, "eta", filetype = "gif")
+# The 3D surface version of the same field. These two write surface.gif and
+# velocity.gif, the pair shown in the README. Pass filetype = "mp4" for video,
+# which is much smaller and faster to write but needs ffmpeg.
+eta_surf_anim = viz_tools.eta_animation3D(X, Y, eta_list, anim_interval*dt, "surface", filetype = "gif")
+quiv_anim = viz_tools.velocity_animation(X, Y, u_list, v_list, anim_interval*dt, "velocity", filetype = "gif")
 # ============================ Done with visualization =============================
 
 print("\nVisualization done!")
