@@ -1,0 +1,4 @@
+## Local matplotlib config, picked up automatically when running from this directory.
+## No system ffmpeg here, so point the animation writer at the static binary
+## shipped by the imageio-ffmpeg wheel installed in .venv.
+animation.ffmpeg_path: .venv/lib64/python3.9/site-packages/imageio_ffmpeg/binaries/ffmpeg-linux-x86_64-v7.0.2
