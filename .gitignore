@@ -108,3 +108,4 @@ venv.bak/
 *.npz
 param_output.txt
 param_output_*.txt
+.venv-py39/
