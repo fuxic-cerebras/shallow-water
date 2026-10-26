@@ -31,3 +31,11 @@ X, Y = data["X"], data["Y"]  # meshgrids, plus dx, dy, dt and the physical param
 Snapshots are taken every `--save-interval` time steps (default: every 1000, i.e. 6 snapshots including the initial state). Pass `--save-interval 20` to store every animation frame instead — that is 250 frames of three fields, i.e. over 100 MB of data at the default resolution. `--no-save` skips the file.
 
 Feel free to play around with the parameters to your liking. You might have to make some tweeks to the colorscale and arrowscale for some of the plots if you change some parameters.
+
+## Status (2026-10-26)
+
+| | |
+| --- | --- |
+| Role | The reference solver the `~/ws` projects started from; `swe-common` pins it as `references/shallow-water` for its parity test |
+| Fixes | Eight latent bugs (friction slice, wind stress and others), fixed and recorded in `MODEL_NOTES.md` section 8 |
+| Plan | The solver moves into `swe-common` (`~/ws/CLAUDE.md`, priority 6); nothing is repointed to it yet |
